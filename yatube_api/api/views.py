@@ -1,15 +1,20 @@
-from rest_framework import viewsets, exceptions, filters
-from rest_framework.pagination import LimitOffsetPagination
-from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 
+from rest_framework import viewsets, filters
+from rest_framework.mixins import CreateModelMixin, ListModelMixin
+from rest_framework.pagination import LimitOffsetPagination
+from rest_framework.permissions import IsAuthenticated
+
+
 from .permissions import IsAuthorOrReadOnlyPermission
-from posts.models import Post, Group, Follow
-from .serializers import (PostSerializer,
-                          GroupSerializer,
-                          CommentSerializer,
-                          FollowSerializer)
+from .serializers import (
+    CommentSerializer,
+    FollowSerializer,
+    GroupSerializer,
+    PostSerializer,
+)
+from posts.models import Group, Post
 
 
 User = get_user_model()
@@ -23,13 +28,10 @@ class PostViewSet(viewsets.ModelViewSet):
     pagination_class = LimitOffsetPagination
 
     def perform_create(self, serializer):
-        if not self.request.user.is_authenticated:
-            raise exceptions.NotAuthenticated(
-                'Неавторизованный пользователь не может создать пост.')
         serializer.save(author=self.request.user)
 
 
-class FollowViewSet(viewsets.ModelViewSet):
+class FollowViewSet(ListModelMixin, CreateModelMixin, viewsets.GenericViewSet):
 
     serializer_class = FollowSerializer
     filter_backends = (filters.SearchFilter,)
@@ -39,24 +41,9 @@ class FollowViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        return Follow.objects.filter(user=user)
+        return user.follower.all()
 
     def perform_create(self, serializer):
-        following_username = serializer.validated_data['following']
-        try:
-            following_user = User.objects.get(username=following_username)
-        except User.DoesNotExist:
-            raise exceptions.ValidationError('Пользователь не найден.')
-
-        if following_user == self.request.user:
-            raise exceptions.ValidationError(
-                'Вы не можете подписаться на себя.')
-
-        if Follow.objects.filter(
-                user=self.request.user, following=following_user).exists():
-            raise exceptions.ValidationError(
-                'Вы уже подписаны на этого пользователя.')
-
         serializer.save(user=self.request.user)
 
 
@@ -73,9 +60,6 @@ class CommentViewSet(viewsets.ModelViewSet):
         return post.comments.all()
 
     def perform_create(self, serializer):
-        if not self.request.user.is_authenticated:
-            raise exceptions.NotAuthenticated(
-                'Неавторизованный пользователь не может создать комментарий.')
         post = self.get_post()
         serializer.save(author=self.request.user, post=post)
 
