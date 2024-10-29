@@ -1,9 +1,8 @@
 from django.contrib.auth import get_user_model
-
 from rest_framework import serializers
 from rest_framework.relations import SlugRelatedField
 
-from posts.models import Comment, Post, Group, Follow
+from posts.models import Comment, Follow, Group, Post
 
 User = get_user_model()
 
@@ -44,24 +43,14 @@ class FollowSerializer(serializers.ModelSerializer):
         model = Follow
         fields = ['user', 'following']
 
-    def validate_following(self, value):
-        if not User.objects.filter(username=value).exists():
-            raise serializers.ValidationError('Пользователь не найден.')
-
-        following_user = User.objects.get(username=value)
-
-        if following_user == self.context['request'].user:
-            raise serializers.ValidationError(
-                'Вы не можете подписаться на себя.')
-
-        return following_user
-
-    def validate(self, attrs):
+    def validate_following(self, following_user):
         user = self.context['request'].user
-        following_user = attrs.get('following')
-
+        if following_user == user:
+            raise serializers.ValidationError(
+                'Вы не можете подписаться на себя.'
+            )
         if Follow.objects.filter(user=user, following=following_user).exists():
             raise serializers.ValidationError(
-                'Вы уже подписаны на этого пользователя.')
-
-        return attrs
+                'Вы уже подписаны на этого пользователя.'
+            )
+        return following_user

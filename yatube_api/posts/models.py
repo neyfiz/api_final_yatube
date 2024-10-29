@@ -1,6 +1,9 @@
 from django.contrib.auth import get_user_model
 from django.db import models
 
+from posts.constants import MAX_POST_TEXT_LENGTH
+
+
 User = get_user_model()
 
 
@@ -49,7 +52,7 @@ class Post(models.Model):
         verbose_name_plural = 'Posts'
 
     def __str__(self):
-        return self.text[:30]
+        return self.text[:MAX_POST_TEXT_LENGTH]
 
 
 class Comment(models.Model):
@@ -77,7 +80,7 @@ class Comment(models.Model):
         verbose_name_plural = 'Comments'
 
     def __str__(self):
-        return self.text[:30]
+        return self.text[:MAX_POST_TEXT_LENGTH]
 
 
 class Follow(models.Model):
@@ -85,7 +88,6 @@ class Follow(models.Model):
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        null=True,
         blank=True,
         related_name='follower',
         verbose_name='Follower')
@@ -93,7 +95,6 @@ class Follow(models.Model):
     following = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        null=True,
         blank=True,
         related_name='following',
         verbose_name='Following')
